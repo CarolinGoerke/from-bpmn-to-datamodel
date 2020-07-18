@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 import subprocess
+import sys
 from typing import Union, Optional
 
 @dataclass
@@ -112,8 +113,14 @@ class Process:
 
             self.tasks[_id] = Task(_id, name, target_object, source_object)
 
+def replace_extension(f: str, new_extension: str):
+    point_pos  = f.rfind(".")
+    if point_pos == -1:
+        return f"{f}.{new_extension}"
+    return f"{f[:point_pos]}.{new_extension}"
+
 def dot2png(dot: str, outputfile: str):
-    with open(outputfile + ".dot", "w") as file_handle:
+    with open(replace_extension(outputfile, "dot"), "w") as file_handle:
         file_handle.write(dot)
         
     with open(outputfile, "wb") as file_handle:
@@ -151,13 +158,16 @@ edge [
         return template
 
 def main():
-    process = Process('diagram1.bpmn')
+    if len(sys.argv) != 2:
+        print("Usage: python3 translate.py [input]")
+        sys.exit(2)
+    process = Process(sys.argv[1])
     diagram = ClassDiagram()
     sources = list(process.data_stores.values()) + list(process.data_objects.values()) + list(process.participants.values())
     for obj in sources:
         diagram.classes.append(obj)
     
-    dot2png(diagram.as_dot(), "diagram1.png")
+    dot2png(diagram.as_dot(), replace_extension(sys.argv[1], "png"))
 
 if __name__ == "__main__":
     main()
