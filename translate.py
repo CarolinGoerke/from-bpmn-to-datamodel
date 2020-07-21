@@ -24,6 +24,7 @@ class DataStore:
 class Task:
     _id: str
     name: str
+    participant: Participant
     data_out: Optional[Union[DataObject, DataStore]]
     data_in: Optional[Union[DataObject, DataStore]]
 
@@ -41,11 +42,11 @@ class Process:
         tree = ET.parse(filename)
         root = tree.getroot()
         
-        self.participants={}
-        self.data_objects={}
-        self.data_stores={}
-        self.messages={}
-        self.tasks={}
+        self.participants = {}
+        self.data_objects = {}
+        self.data_stores = {}
+        self.messages = {}
+        self.tasks = {}
 
         self.get_participants(root)
         self.get_data_objects(root)
@@ -53,16 +54,29 @@ class Process:
         self.get_tasks(root)
         self.get_messages(root)
         
-
-
     def get_participants(self, root: ET.ElementTree):
-        all_participants = root.findall('.//bpmn:participant',ns)
-        for p in all_participants:
+
+        # find all external participants and pools
+        participants = root.findall('.//bpmn:participant', ns)
+        for p in participants:
             new_participant_name = p.attrib['name']
             new_participant_intern = 'processRef' in p.attrib
             new_participant_id = p.attrib['id']
             self.participants[new_participant_id] = Participant(new_participant_name, new_participant_intern, new_participant_id)
 
+        # find all internal participants represented as lanes
+        participants = root.findall('.//bpmn:lane', ns)
+        for p in participants:
+            new_id = p.attrib['id']
+            new_name = p.attrib['name']
+            self.participants[new_id] = Participant(new_name, False, new_id)
+
+
+            # find all activities that are part of this lane
+            for element in p.iter():
+                if ('Activity' in element.text):
+                    self.tasks[element.text] = Task(element.text, None, self.participants[new_id], None, None)
+            
     def get_data_objects(self, root: ET.ElementTree):
         all_data_objects = root.findall('.//bpmn:dataObjectReference', ns)
         for o in all_data_objects:
