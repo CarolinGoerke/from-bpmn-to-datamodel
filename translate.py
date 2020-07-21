@@ -10,6 +10,9 @@ class Participant:
     intern: bool
     _id: str
 
+    def __hash__(self):
+        return hash(self._id)
+
 @dataclass
 class DataObject:
     name: str
@@ -31,9 +34,8 @@ class Task:
 @dataclass
 class Message:
     _id: str
-    source: Union[Task, Participant]
-    target: Union[Task, Participant]
-        
+    source: Participant
+    target: Participant
 
 ns = {'bpmn': 'http://www.omg.org/spec/BPMN/20100524/MODEL'}
 
@@ -91,23 +93,12 @@ class Process:
             s_id = s.attrib['id']
             self.data_stores[s_id] = DataStore(name, s_id)
 
-    def get_messages(self, root: ET.ElementTree):
-        all_messages = root.findall('.//bpmn:messageFlow', ns)
-        for m in all_messages:
-            _id = m.attrib['id']
-            source_id = m.attrib['sourceRef']
-            target_id = m.attrib['targetRef']
-            source = self.tasks.get(source_id, self.participants.get(source_id))
-            target = self.tasks.get(target_id, self.participants.get(target_id))
-            assert source is not None, "Found message with undefined source"
-            assert target is not None, "Found message with undefined target"
-            self.messages[_id] = Message(_id, source, target)
-
     def get_tasks(self, root: ET.ElementTree):
         all_tasks = root.findall('.//bpmn:task', ns)
         for t in all_tasks:
             _id = t.attrib['id']
             name = t.attrib['name']
+            participant = self.tasks[_id].participant
             data_out = t.findall('.//bpmn:dataOutputAssociation', ns)
             assert len(data_out) <= 1, 'Multiple Outputs'
             data_in = t.findall('.//bpmn:dataInputAssociation', ns)
@@ -125,7 +116,28 @@ class Process:
                 source_object = self.data_objects.get(source_id, self.data_stores.get(source_id))
                 assert source_object is not None, "sourceRef references non existing data object"
 
-            self.tasks[_id] = Task(_id, name, target_object, source_object)
+            self.tasks[_id] = Task(_id, name, participant, target_object, source_object)
+
+
+    def get_messages(self, root: ET.ElementTree):
+        all_messages = root.findall('.//bpmn:messageFlow', ns)
+        for m in all_messages:
+            _id = m.attrib['id']
+            source_id = m.attrib['sourceRef']
+            source = self.get_participant_from_id(source_id)
+            target_id = m.attrib['targetRef']
+            target = self.get_participant_from_id(target_id)
+            assert source is not None, "Found message with undefined source"
+            assert target is not None, "Found message with undefined target"
+            self.messages[_id] = Message(_id, source, target)
+
+    # naming is a little unlucky, this always returns a participant for the message
+    def get_participant_from_id(self, id):
+        if ('Activity' in id):
+            return self.tasks[id].participant
+        elif ('Participant' in id):
+            return self.participants[id]
+
 
 def replace_extension(f: str, new_extension: str):
     point_pos  = f.rfind(".")
@@ -146,7 +158,9 @@ def dot2png(dot: str, outputfile: str):
 
 class ClassDiagram:
     def __init__(self):
-        self.classes=[]
+        self.classes = []
+        self.messageEdges = []
+        self.accessEdges = []
     
     def as_dot(self):
         template = r"""digraph G {
@@ -168,6 +182,16 @@ edge [
         for c in self.classes:
             template += f"{c._id} [ label=<{{<b>{c.name}</b><br/>|<br/>}}> ]\n"
         
+        template += """edge [
+            arrowhead="none"
+            fontsize = 8
+        ]
+        """
+
+        for me in self.messageEdges:
+            message =  list(me)
+            template += f"{message[0]._id} -> {message[1]._id}\n"
+        
         template += "}"
         return template
 
@@ -177,9 +201,17 @@ def main():
         sys.exit(2)
     process = Process(sys.argv[1])
     diagram = ClassDiagram()
-    sources = list(process.data_stores.values()) + list(process.data_objects.values()) + list(process.participants.values())
-    for obj in sources:
+    classes = list(process.data_stores.values()) + list(process.data_objects.values()) + list(process.participants.values())
+    messageEdges = list(process.messages.values())
+
+    for obj in classes:
         diagram.classes.append(obj)
+    
+    for obj in messageEdges:
+        # avoid having multiple edges between the same two classes
+        message = set((obj.source, obj.target))
+        if (message not in diagram.messageEdges):
+            diagram.messageEdges.append(message)
     
     dot2png(diagram.as_dot(), replace_extension(sys.argv[1], "png"))
 
