@@ -28,8 +28,8 @@ class Task:
     _id: str
     name: str
     participant: Participant
-    data_out: Optional[Union[DataObject, DataStore]]
-    data_in: Optional[Union[DataObject, DataStore]]
+    data_out: List[Union[DataObject, DataStore]]
+    data_in: List[Union[DataObject, DataStore]]
 
 @dataclass
 class Message:
@@ -100,23 +100,26 @@ class Process:
             name = t.attrib['name']
             participant = self.tasks[_id].participant
             data_out = t.findall('.//bpmn:dataOutputAssociation', ns)
-            assert len(data_out) <= 1, 'Multiple Outputs'
             data_in = t.findall('.//bpmn:dataInputAssociation', ns)
-            assert len(data_in) <= 1, 'Multiple Inputs'
 
-            target_object = None
-            if len(data_out) == 1:
-                target_id = data_out[0].findall('.//bpmn:targetRef', ns)[0].text
+            target_objects = []
+            if len(data_out) >= 1:
+                for data in data_out:
+                    target_id = data.findall('.//bpmn:targetRef', ns)[0].text
                 target_object = self.data_objects.get(target_id, self.data_stores.get(target_id))
                 assert target_object is not None, "targetRef references non existing data object: " + target_id
+                    target_objects.append(target_object)
             
-            source_object = None
-            if len(data_in) == 1:
-                source_id = data_in[0].findall('.//bpmn:sourceRef', ns)[0].text
+            source_objects = []
+            if len(data_in) >= 1:
+                for data in data_in:
+                    source_id = data.findall('.//bpmn:sourceRef', ns)[0].text
                 source_object = self.data_objects.get(source_id, self.data_stores.get(source_id))
                 assert source_object is not None, "sourceRef references non existing data object"
+                    # we probably need to check whether the data object/store is already in there
+                    source_objects.append(source_object)
 
-            self.tasks[_id] = Task(_id, name, participant, target_object, source_object)
+            self.tasks[_id] = Task(_id, name, participant, target_objects, source_objects)
 
 
     def get_messages(self, root: ET.ElementTree):
@@ -156,20 +159,20 @@ def dot2png(dot: str, outputfile: str):
             print("Please install graphviz (brew install graphviz / apt-get install graphviz)")
             print("and make sure that 'dot' is available in your environment path.")
 
+
 class ClassDiagram:
     def __init__(self):
         self.classes = []
-        self.messageEdges = []
-        self.accessEdges = []
+        self.messageAssociations = []
     
     def as_dot(self):
         template = r"""digraph G {
-fontname = "Bitstream Vera Sans"
+            fontname = "Courier"
 fontsize = 8
 rankdir = BT
 
 node [
-    fontname = "Bitstream Vera Sans"
+                fontname = "Courier"
     fontsize = 8
     shape = "record"
 ]
@@ -188,8 +191,8 @@ edge [
         ]
         """
 
-        for me in self.messageEdges:
-            message =  list(me)
+        for me in self.messageAssociations:
+            message = list(me)
             template += f"{message[0]._id} -> {message[1]._id}\n"
         
         template += "}"
@@ -202,16 +205,16 @@ def main():
     process = Process(sys.argv[1])
     diagram = ClassDiagram()
     classes = list(process.data_stores.values()) + list(process.data_objects.values()) + list(process.participants.values())
-    messageEdges = list(process.messages.values())
+    messageAssociations = list(process.messages.values())
 
     for obj in classes:
         diagram.classes.append(obj)
     
-    for obj in messageEdges:
-        # avoid having multiple edges between the same two classes
+    for obj in messageAssociations:
+        # avoid having multiple Associations between the same two classes
         message = set((obj.source, obj.target))
-        if (message not in diagram.messageEdges):
-            diagram.messageEdges.append(message)
+        if (message not in diagram.messageAssociations):
+            diagram.messageAssociations.append(message)
     
     dot2png(diagram.as_dot(), replace_extension(sys.argv[1], "png"))
 
