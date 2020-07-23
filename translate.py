@@ -18,10 +18,16 @@ class DataObject:
     name: str
     _id: str
 
+    def __hash__(self):
+        return hash(self._id)
+
 @dataclass
 class DataStore:
     name: str
     _id: str
+        
+    def __hash__(self):
+        return hash(self._id)
         
 @dataclass
 class Task:
@@ -164,6 +170,21 @@ class ClassDiagram:
     def __init__(self):
         self.classes = []
         self.messageAssociations = []
+        self.dataReadAssociations = []
+        self.dataWriteAssociations = []
+        self.dataReadWriteAssociations = []
+
+    def associationNotIncluded(self, association):
+        return association not in self.dataWriteAssociations and \
+                    association not in self.dataReadAssociations and \
+                    association not in self.dataReadWriteAssociations
+
+    def getTemplateForDataAccessEdge(self, association, label):
+        association = list(association)
+        if 'Data' in association[0]._id:
+            return f"{association[1]._id} -> {association[0]._id} [ label=<{label}> ]\n"
+        else:
+            return f"{association[0]._id} -> {association[1]._id} [ label=<{label}> ]\n"
     
     def as_dot(self):
         template = r"""digraph G {
@@ -195,6 +216,22 @@ edge [
             message = list(me)
             template += f"{message[0]._id} -> {message[1]._id}\n"
         
+        template += """edge [
+            dir="forward"
+            arrowhead="open"
+            fontsize = 8
+        ]
+        """
+
+        for assoc in self.dataWriteAssociations:
+            template += self.getTemplateForDataAccessEdge(assoc, 'write')
+
+        for assoc in self.dataReadAssociations:
+            template += self.getTemplateForDataAccessEdge(assoc, 'read')
+
+        for assoc in self.dataReadWriteAssociations:
+            template += self.getTemplateForDataAccessEdge(assoc, 'read and write')
+
         template += "}"
         return template
 
@@ -215,6 +252,25 @@ def main():
         message = set((obj.source, obj.target))
         if (message not in diagram.messageAssociations):
             diagram.messageAssociations.append(message)
+    
+    for task in list(process.tasks.values()):
+        associatedData = task.data_in + task.data_out
+        if associatedData:
+            for do in task.data_in:
+                dataReadAssociation = set((task.participant, do))
+                if (dataReadAssociation in diagram.dataWriteAssociations):
+                    diagram.dataReadWriteAssociations.append(dataReadAssociation)
+                    diagram.dataWriteAssociations.remove(dataReadAssociation)
+                elif (diagram.associationNotIncluded(dataReadAssociation)):
+                    diagram.dataReadAssociations.append(dataReadAssociation)
+
+            for do in task.data_out:
+                dataWriteAssociation = set((task.participant, do))
+                if (dataWriteAssociation in diagram.dataReadAssociations):
+                    diagram.dataReadWriteAssociations.append(dataWriteAssociation)
+                    diagram.dataReadAssociations.remove(dataWriteAssociation)
+                elif (diagram.associationNotIncluded(dataWriteAssociation)):
+                    diagram.dataWriteAssociations.append(dataWriteAssociation)
     
     dot2png(diagram.as_dot(), replace_extension(sys.argv[1], "png"))
 
