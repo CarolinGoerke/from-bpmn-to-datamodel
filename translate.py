@@ -2,12 +2,12 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 import subprocess
 import sys
-from typing import Union, Optional
+from typing import Union, Optional, List
 
 @dataclass
 class Participant:
     name: str
-    intern: bool
+    intern: str
     _id: str
 
     def __hash__(self):
@@ -25,7 +25,7 @@ class DataObject:
 class DataStore:
     name: str
     _id: str
-        
+
     def __hash__(self):
         return hash(self._id)
         
@@ -61,29 +61,42 @@ class Process:
         self.get_data_stores(root)
         self.get_tasks(root)
         self.get_messages(root)
-        
+
     def get_participants(self, root: ET.ElementTree):
 
         # find all external participants and pools
         participants = root.findall('.//bpmn:participant', ns)
         for p in participants:
             new_participant_name = p.attrib['name']
-            new_participant_intern = 'processRef' in p.attrib
+            new_participant_intern = p.attrib['processRef'] if 'processRef' in p.attrib else None
             new_participant_id = p.attrib['id']
             self.participants[new_participant_id] = Participant(new_participant_name, new_participant_intern, new_participant_id)
 
         # find all internal participants represented as lanes
-        participants = root.findall('.//bpmn:lane', ns)
-        for p in participants:
-            new_id = p.attrib['id']
-            new_name = p.attrib['name']
-            self.participants[new_id] = Participant(new_name, False, new_id)
+        processes = root.findall('.//bpmn:process', ns)
+        for process in processes:
+            participants = process.findall('.//bpmn:lane', ns)
+            if (len(participants) > 0):
+                for p in participants:
+                    new_id = p.attrib['id']
+                    new_name = p.attrib['name']
+                    self.participants[new_id] = Participant(new_name, None, new_id)
 
-
-            # find all activities that are part of this lane
-            for element in p.iter():
-                if ('Activity' in element.text):
-                    self.tasks[element.text] = Task(element.text, None, self.participants[new_id], None, None)
+                    # find all activities that are part of this lane
+                    for element in p.iter():
+                        if ('Activity' in element.text):
+                            self.tasks[element.text] = Task(element.text, None, self.participants[new_id], None, None)
+            # this is the case if there are no lanes but only one pool
+            else:
+                participant = None
+                for p in self.participants.values():
+                    if str(p.intern) == str(process.attrib['id']):
+                        participant = p
+                
+                tasks = process.findall('.//bpmn:task', ns)
+                for task in tasks:
+                    new_id = task.attrib['id']
+                    self.tasks[new_id] = Task(new_id, None, participant, None, None)
             
     def get_data_objects(self, root: ET.ElementTree):
         all_data_objects = root.findall('.//bpmn:dataObjectReference', ns)
@@ -112,16 +125,16 @@ class Process:
             if len(data_out) >= 1:
                 for data in data_out:
                     target_id = data.findall('.//bpmn:targetRef', ns)[0].text
-                target_object = self.data_objects.get(target_id, self.data_stores.get(target_id))
-                assert target_object is not None, "targetRef references non existing data object: " + target_id
+                    target_object = self.data_objects.get(target_id, self.data_stores.get(target_id))
+                    assert target_object is not None, "targetRef references non existing data object: " + target_id
                     target_objects.append(target_object)
             
             source_objects = []
             if len(data_in) >= 1:
                 for data in data_in:
                     source_id = data.findall('.//bpmn:sourceRef', ns)[0].text
-                source_object = self.data_objects.get(source_id, self.data_stores.get(source_id))
-                assert source_object is not None, "sourceRef references non existing data object"
+                    source_object = self.data_objects.get(source_id, self.data_stores.get(source_id))
+                    assert source_object is not None, "sourceRef references non existing data object"
                     # we probably need to check whether the data object/store is already in there
                     source_objects.append(source_object)
 
@@ -185,27 +198,27 @@ class ClassDiagram:
             return f"{association[1]._id} -> {association[0]._id} [ label=<{label}> ]\n"
         else:
             return f"{association[0]._id} -> {association[1]._id} [ label=<{label}> ]\n"
-    
+
     def as_dot(self):
         template = r"""digraph G {
             fontname = "Courier"
-fontsize = 8
-rankdir = BT
+            fontsize = 8
+            rankdir = BT
 
-node [
+            node [
                 fontname = "Courier"
-    fontsize = 8
-    shape = "record"
-]
+                fontsize = 8
+                shape = "record"
+            ]
 
-edge [
-    arrowhead="none"
-    fontsize = 8
-]
-"""
+            edge [
+                arrowhead="none"
+                fontsize = 8
+            ]
+        """
         for c in self.classes:
             template += f"{c._id} [ label=<{{<b>{c.name}</b><br/>|<br/>}}> ]\n"
-        
+
         template += """edge [
             arrowhead="none"
             fontsize = 8
@@ -246,13 +259,13 @@ def main():
 
     for obj in classes:
         diagram.classes.append(obj)
-    
+
     for obj in messageAssociations:
         # avoid having multiple Associations between the same two classes
         message = set((obj.source, obj.target))
         if (message not in diagram.messageAssociations):
             diagram.messageAssociations.append(message)
-    
+
     for task in list(process.tasks.values()):
         associatedData = task.data_in + task.data_out
         if associatedData:
