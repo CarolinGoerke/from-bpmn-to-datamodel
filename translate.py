@@ -1,14 +1,15 @@
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import subprocess
 import sys
-from typing import Union, Optional, List
+from typing import Union, Optional, List, Set
 
 @dataclass
 class Participant:
     name: str
     intern: str
     _id: str
+    properties: Set[str] = field(default_factory=set)
 
     def __hash__(self):
         return hash(self._id)
@@ -17,6 +18,7 @@ class Participant:
 class DataObject:
     name: str
     _id: str
+    properties: Set[str] = field(default_factory=set)
 
     def __hash__(self):
         return hash(self._id)
@@ -25,6 +27,7 @@ class DataObject:
 class DataStore:
     name: str
     _id: str
+    properties: Set[str] = field(default_factory=set)
 
     def __hash__(self):
         return hash(self._id)
@@ -37,11 +40,14 @@ class Task:
     data_out: List[Union[DataObject, DataStore]]
     data_in: List[Union[DataObject, DataStore]]
 
+    def __hash__(self):
+        return hash(self._id)
+
 @dataclass
 class Message:
     _id: str
-    source: Participant
-    target: Participant
+    source: Union[Task, Participant]
+    target: Union[Task, Participant]
 
 ns = {'bpmn': 'http://www.omg.org/spec/BPMN/20100524/MODEL'}
 
@@ -62,6 +68,21 @@ class Process:
         self.get_tasks(root)
         self.get_messages(root)
 
+        self.identify_atrributes()
+
+    def identify_atrributes(self):
+        for message in self.messages.values():
+            if isinstance(message.source, Task) and isinstance(message.target, Participant):
+                for obj in message.source.data_in + message.source.data_out:
+                    obj.properties.add(message.target.name)
+            elif isinstance(message.source, Participant) and isinstance(message.target, Task):
+                for obj in message.target.data_out:
+                    obj.properties.add(message.source.name)
+            else:
+                print("Ignoring message from Task to Task or Participant to Participant.")
+
+
+    
     def get_participants(self, root: ET.ElementTree):
 
         # find all external participants and pools
@@ -146,9 +167,9 @@ class Process:
         for m in all_messages:
             _id = m.attrib['id']
             source_id = m.attrib['sourceRef']
-            source = self.get_participant_from_id(source_id)
+            source = self.tasks.get(source_id, self.participants.get(source_id))
             target_id = m.attrib['targetRef']
-            target = self.get_participant_from_id(target_id)
+            target = self.tasks.get(target_id, self.participants.get(target_id))
             assert source is not None, "Found message with undefined source"
             assert target is not None, "Found message with undefined target"
             self.messages[_id] = Message(_id, source, target)
@@ -217,7 +238,7 @@ class ClassDiagram:
             ]
         """
         for c in self.classes:
-            template += f"{c._id} [ label=<{{<b>{c.name}</b><br/>|<br/>}}> ]\n"
+            template += f"{c._id} [ label=<{{<b>{c.name}</b><br/>|{'<br/>'.join(c.properties)}|<br/>}}> ]\n"
 
         template += """edge [
             arrowhead="none"
@@ -262,7 +283,9 @@ def main():
 
     for obj in messageAssociations:
         # avoid having multiple Associations between the same two classes
-        message = set((obj.source, obj.target))
+        message = set((
+            obj.source if isinstance(obj.source, Participant) else obj.source.participant, 
+            obj.target if isinstance(obj.target, Participant) else obj.target.participant))
         if (message not in diagram.messageAssociations):
             diagram.messageAssociations.append(message)
 
