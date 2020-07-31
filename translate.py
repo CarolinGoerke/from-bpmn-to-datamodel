@@ -88,8 +88,8 @@ class Process:
         # find all external participants and pools
         participants = root.findall('.//bpmn:participant', ns)
         for p in participants:
-            new_participant_name = p.attrib['name']
             new_participant_intern = p.attrib['processRef'] if 'processRef' in p.attrib else None
+            new_participant_name = ("P_" if new_participant_intern is None else "ExtP_") + p.attrib['name']
             new_participant_id = p.attrib['id']
             self.participants[new_participant_id] = Participant(new_participant_name, new_participant_intern, new_participant_id)
 
@@ -100,7 +100,7 @@ class Process:
             if (len(participants) > 0):
                 for p in participants:
                     new_id = p.attrib['id']
-                    new_name = p.attrib['name']
+                    new_name = "P_" + p.attrib['name']
                     self.participants[new_id] = Participant(new_name, None, new_id)
 
                     # find all activities that are part of this lane
@@ -122,14 +122,14 @@ class Process:
     def get_data_objects(self, root: ET.ElementTree):
         all_data_objects = root.findall('.//bpmn:dataObjectReference', ns)
         for o in all_data_objects:
-            name = o.attrib['name']
+            name = "DO_" + o.attrib['name']
             o_id = o.attrib['id']
             self.data_objects[o_id] = DataObject(name, o_id)
 
     def get_data_stores(self, root: ET.ElementTree):
         all_data_stores = root.findall('.//bpmn:dataStoreReference', ns)
         for s in all_data_stores:
-            name = s.attrib['name']
+            name = "DS_" + s.attrib['name']
             s_id = s.attrib['id']
             self.data_stores[s_id] = DataStore(name, s_id)
 
