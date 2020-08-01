@@ -9,10 +9,19 @@ class Participant:
     name: str
     intern: str
     _id: str
+    pool: Optional[str] = None
     properties: Set[str] = field(default_factory=set)
 
     def __hash__(self):
         return hash(self._id)
+    
+    @property
+    def is_intern(self):
+        return self.intern is not None
+    
+    @property
+    def is_extern(self):
+        return not self.is_intern
 
 @dataclass
 class DataObject:
@@ -101,7 +110,7 @@ class Process:
                 for p in participants:
                     new_id = p.attrib['id']
                     new_name = "P_" + p.attrib['name']
-                    self.participants[new_id] = Participant(new_name, None, new_id)
+                    self.participants[new_id] = Participant(new_name, process.attrib.get("id"), new_id, process.attrib.get("id"))
 
                     # find all activities that are part of this lane
                     for element in p.iter():
@@ -114,7 +123,7 @@ class Process:
                     if str(p.intern) == str(process.attrib['id']):
                         participant = p
                 
-                tasks = process.findall('.//bpmn:task', ns)
+                tasks = process.findall('.//bpmn:task', ns) + process.findall('.//bpmn:startEvent', ns) + process.findall('.//bpmn:intermediateThrowEvent', ns) + process.findall('.//bpmn:intermediateCatchEvent', ns) 
                 for task in tasks:
                     new_id = task.attrib['id']
                     self.tasks[new_id] = Task(new_id, None, participant, None, None)
@@ -134,10 +143,10 @@ class Process:
             self.data_stores[s_id] = DataStore(name, s_id)
 
     def get_tasks(self, root: ET.ElementTree):
-        all_tasks = root.findall('.//bpmn:task', ns)
+        all_tasks = root.findall('.//bpmn:task', ns) + root.findall('.//bpmn:startEvent', ns) + root.findall('.//bpmn:intermediateThrowEvent', ns) + root.findall('.//bpmn:intermediateCatchEvent', ns) 
         for t in all_tasks:
             _id = t.attrib['id']
-            name = t.attrib['name']
+            name = t.attrib['name'] if 'name' in t.attrib else f"{_id}"
             participant = self.tasks[_id].participant
             data_out = t.findall('.//bpmn:dataOutputAssociation', ns)
             data_in = t.findall('.//bpmn:dataInputAssociation', ns)
@@ -265,6 +274,25 @@ class ClassDiagram:
 
         for assoc in self.dataReadWriteAssociations:
             template += self.getTemplateForDataAccessEdge(assoc, 'read and write')
+
+        template += """edge [
+            arrowhead="empty"
+            fontsize = 8
+        ]
+        """
+        for participant1 in self.classes:
+            if not isinstance(participant1, Participant):
+                continue
+            for participant2 in self.classes:
+                if not isinstance(participant2, Participant):
+                    continue
+                if participant1._id == participant2._id:
+                    continue
+                if participant1.is_intern and participant2.is_intern:
+                    if participant1.intern == participant2.pool and participant2.pool is not None and participant1.pool is None:
+                        template += f"{participant2._id} -> {participant1._id}\n"
+
+
 
         template += "}"
         return template
