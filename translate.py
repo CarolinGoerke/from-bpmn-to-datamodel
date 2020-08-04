@@ -4,11 +4,6 @@ from class_diagram import ClassDiagram
 from process import Process
 from data_classes import Participant, Class_Diagram_Class
 
-import os
-os.environ["PATH"] += os.pathsep + 'C:/Users/Max/miniconda3/pkgs/graphviz-2.38-hfd603c8_2/Library/bin'
-
-# import pdb; pdb.set_trace()
-
 def replace_extension(f: str, new_extension: str):
     point_pos  = f.rfind(".")
     if point_pos == -1:
@@ -29,24 +24,20 @@ def dot2png(dot: str, outputfile: str):
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python3 translate.py [input]")
+    if len(sys.argv) < 3:
+        print("Usage: python3 translate.py [output_filename] [input]")
         sys.exit(2)
     
     diagram = ClassDiagram()
     classes = []
     messageAssociations = []
     tasks = []
-    for i in range(1, len(sys.argv)):
+    for i in range(2, len(sys.argv)):
         process = Process(sys.argv[i])
         classes += list(process.data_stores.values()) + list(process.data_objects.values()) + list(process.participants.values())
         messageAssociations += list(process.messages.values())
         tasks += list(process.tasks.values())
 
-    # classes = list(process.data_stores.values()) + list(process.data_objects.values()) + list(process.participants.values())
-    # messageAssociations = list(process.messages.values())
-
-    # Requirement: Identify class via name, merge all attributes, provide a list of all ids associated to that class
 
     class_diagram_classes = {}
     for obj in classes:

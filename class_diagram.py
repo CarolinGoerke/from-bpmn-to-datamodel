@@ -48,7 +48,6 @@ class ClassDiagram:
         """
 
         for me in self.messageAssociations:
-            print(me)
             message = list(me)
             template += f"{message[0].name} -> {message[1].name}\n"
         
