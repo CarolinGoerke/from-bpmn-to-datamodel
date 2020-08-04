@@ -2,7 +2,12 @@ import subprocess
 import sys
 from class_diagram import ClassDiagram
 from process import Process
-from data_classes import Participant
+from data_classes import Participant, Class_Diagram_Class
+
+import os
+os.environ["PATH"] += os.pathsep + 'C:/Users/Max/miniconda3/pkgs/graphviz-2.38-hfd603c8_2/Library/bin'
+
+# import pdb; pdb.set_trace()
 
 def replace_extension(f: str, new_extension: str):
     point_pos  = f.rfind(".")
@@ -24,16 +29,37 @@ def dot2png(dot: str, outputfile: str):
 
 
 def main():
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2:
         print("Usage: python3 translate.py [input]")
         sys.exit(2)
-    process = Process(sys.argv[1])
+    
     diagram = ClassDiagram()
-    classes = list(process.data_stores.values()) + list(process.data_objects.values()) + list(process.participants.values())
-    messageAssociations = list(process.messages.values())
+    classes = []
+    messageAssociations = []
+    tasks = []
+    for i in range(1, len(sys.argv)):
+        process = Process(sys.argv[i])
+        classes += list(process.data_stores.values()) + list(process.data_objects.values()) + list(process.participants.values())
+        messageAssociations += list(process.messages.values())
+        tasks += list(process.tasks.values())
 
+    # classes = list(process.data_stores.values()) + list(process.data_objects.values()) + list(process.participants.values())
+    # messageAssociations = list(process.messages.values())
+
+    # Requirement: Identify class via name, merge all attributes, provide a list of all ids associated to that class
+
+    class_diagram_classes = {}
     for obj in classes:
-        diagram.classes.append(obj)
+        if obj.name not in class_diagram_classes:
+            if hasattr(obj, 'pool'):
+                new_class = Class_Diagram_Class(obj.name, { obj._id }, obj.properties, obj.pool)
+            else:
+                new_class = Class_Diagram_Class(obj.name, { obj._id }, obj.properties)
+            class_diagram_classes[obj.name] = new_class
+        else:
+            class_diagram_classes[obj.name].ids.add(obj._id)
+            class_diagram_classes[obj.name].properties |= obj.properties
+    diagram.classes = class_diagram_classes
 
     for obj in messageAssociations:
         # avoid having multiple Associations between the same two classes
@@ -43,23 +69,23 @@ def main():
         if (message not in diagram.messageAssociations):
             diagram.messageAssociations.append(message)
 
-    for task in list(process.tasks.values()):
+    for task in tasks:
         associatedData = task.data_in + task.data_out
         if associatedData:
             for do in task.data_in:
-                dataReadAssociation = set((task.participant, do))
+                dataReadAssociation = set((task.participant.name, do.name))
                 if (dataReadAssociation in diagram.dataWriteAssociations):
                     diagram.dataReadWriteAssociations.append(dataReadAssociation)
                     diagram.dataWriteAssociations.remove(dataReadAssociation)
-                elif (diagram.associationNotIncluded(dataReadAssociation)):
+                elif (diagram.association_not_included(dataReadAssociation)):
                     diagram.dataReadAssociations.append(dataReadAssociation)
 
             for do in task.data_out:
-                dataWriteAssociation = set((task.participant, do))
+                dataWriteAssociation = set((task.participant.name, do.name))
                 if (dataWriteAssociation in diagram.dataReadAssociations):
                     diagram.dataReadWriteAssociations.append(dataWriteAssociation)
                     diagram.dataReadAssociations.remove(dataWriteAssociation)
-                elif (diagram.associationNotIncluded(dataWriteAssociation)):
+                elif (diagram.association_not_included(dataWriteAssociation)):
                     diagram.dataWriteAssociations.append(dataWriteAssociation)
     
     dot2png(diagram.as_dot(), replace_extension(sys.argv[1], "png"))
