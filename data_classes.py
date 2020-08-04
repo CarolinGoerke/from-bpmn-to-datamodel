@@ -52,6 +52,7 @@ class Task:
 @dataclass
 class Message:
     _id: str
+    name: str
     source: Union[Task, Participant]
     target: Union[Task, Participant]
 

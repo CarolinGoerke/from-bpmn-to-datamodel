@@ -126,11 +126,9 @@ class Process:
             target = self.tasks.get(target_id, self.participants.get(target_id))
             assert source is not None, "Found message with undefined source"
             assert target is not None, "Found message with undefined target"
-            self.messages[_id] = Message(_id, source, target)
-
-    # naming is a little unlucky, this always returns a participant for the message
-    def get_participant_from_id(self, id):
-        if ('Activity' in id):
-            return self.tasks[id].participant
-        elif ('Participant' in id):
-            return self.participants[id]
+            message_name = None
+            if isinstance(source, Task):
+                message_name = source.name
+            elif isinstance(target, Task):
+                message_name = target.name
+            self.messages[_id] = Message(_id, message_name, source, target)

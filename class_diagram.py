@@ -3,7 +3,7 @@ from data_classes import Participant
 class ClassDiagram:
     def __init__(self):
         self.classes = {}
-        self.messageAssociations = []
+        self.messageAssociations = {}
         self.dataReadAssociations = []
         self.dataWriteAssociations = []
         self.dataReadWriteAssociations = []
@@ -41,6 +41,12 @@ class ClassDiagram:
         for c in self.classes:
             template += f"{c} [ label=<{{<b>{c}</b><br/>|{'<br/>'.join(self.classes[c].properties)}|<br/>}}> ]\n"
 
+        for me in self.messageAssociations:
+            message_names = self.messageAssociations[me]
+            if len(message_names) > 1:
+                association_name = f"{me[0].name.split('_', 1)[1]}_{me[1].name.split('_', 1)[1]}"
+                template += f"{association_name} [ label=<{{&lt;&lt;enumeration&gt;&gt;<br/><b>{association_name}</b><br/>|{'<br/>'.join(message_names)}|<br/>}}> ]\n"
+
         template += """edge [
             arrowhead="none"
             fontsize = 8
@@ -49,9 +55,12 @@ class ClassDiagram:
         """
 
         for me in self.messageAssociations:
-            message = list(me)
-            template += f"{message[0].name} -> {message[1].name} [ label=<parent_doctor>, taillabel=<*>, headlabel=<*> ]\n"
-        
+            message_names = self.messageAssociations[me]
+            if len(message_names) > 1:
+                template += f"{me[0].name} -> {me[1].name} [ label=<{me[0].name.split('_', 1)[1]}-{me[1].name.split('_', 1)[1]}>, taillabel=<*>, headlabel=<*> ]\n"
+            else:
+                template += f"{me[0].name} -> {me[1].name} [ label=<{message_names[0]}>, taillabel=<*>, headlabel=<*> ]\n"
+
         template += """edge [
             dir="forward"
             arrowhead="open"
