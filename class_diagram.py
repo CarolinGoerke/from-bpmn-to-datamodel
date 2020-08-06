@@ -7,6 +7,7 @@ class ClassDiagram:
         self.dataReadAssociations = []
         self.dataWriteAssociations = []
         self.dataReadWriteAssociations = []
+        self.data_associations = []
 
     def association_not_included(self, association):
         return association not in self.dataWriteAssociations and \
@@ -60,6 +61,10 @@ class ClassDiagram:
                 template += f"{me[0].name} -> {me[1].name} [ label=<{me[0].name.split('_', 1)[1]}-{me[1].name.split('_', 1)[1]}>, taillabel=<*>, headlabel=<*> ]\n"
             else:
                 template += f"{me[0].name} -> {me[1].name} [ label=<{message_names[0]}>, taillabel=<*>, headlabel=<*> ]\n"
+
+        for da in self.data_associations:
+            da = list(da)
+            template += f"{da[0].name} -> {da[1].name}\n"
 
         template += """edge [
             dir="forward"

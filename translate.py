@@ -65,9 +65,11 @@ def main():
                 diagram.messageAssociations[message].append(obj.name)
 
     for task in tasks:
-        associatedData = task.data_in + task.data_out
+        inputs = task.data_in
+        outputs = task.data_out
+        associatedData = inputs + outputs
         if associatedData:
-            for do in task.data_in:
+            for do in inputs:
                 dataReadAssociation = set((task.participant.name, do.name))
                 if (dataReadAssociation in diagram.dataWriteAssociations):
                     diagram.dataReadWriteAssociations.append(dataReadAssociation)
@@ -75,13 +77,21 @@ def main():
                 elif (diagram.association_not_included(dataReadAssociation)):
                     diagram.dataReadAssociations.append(dataReadAssociation)
 
-            for do in task.data_out:
+            for do in outputs:
                 dataWriteAssociation = set((task.participant.name, do.name))
                 if (dataWriteAssociation in diagram.dataReadAssociations):
                     diagram.dataReadWriteAssociations.append(dataWriteAssociation)
                     diagram.dataReadAssociations.remove(dataWriteAssociation)
                 elif (diagram.association_not_included(dataWriteAssociation)):
                     diagram.dataWriteAssociations.append(dataWriteAssociation)
+        
+        if inputs and outputs:
+            for do_in in inputs:
+                for do_out in outputs:
+                    if do_in.name != do_out.name:
+                        data_association = set((do_in, do_out))
+                        diagram.data_associations.append(data_association)
+                
     
     dot2png(diagram.as_dot(), replace_extension(sys.argv[1], "png"))
 
