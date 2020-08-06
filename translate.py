@@ -54,13 +54,15 @@ def main():
 
     for obj in messageAssociations:
         # avoid having multiple Associations between the same two classes
-        message = (
+        message = set((
             obj.source if isinstance(obj.source, Participant) else obj.source.participant, 
-            obj.target if isinstance(obj.target, Participant) else obj.target.participant)
+            obj.target if isinstance(obj.target, Participant) else obj.target.participant))
+        message = tuple(message)
         if (message not in diagram.messageAssociations):
             diagram.messageAssociations[message] = [ obj.name ]
         else:
-            diagram.messageAssociations[message].append(obj.name)
+            if obj.name not in diagram.messageAssociations[message]:
+                diagram.messageAssociations[message].append(obj.name)
 
     for task in tasks:
         associatedData = task.data_in + task.data_out
