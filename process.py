@@ -36,10 +36,12 @@ class Process:
     def get_tasks_and_events_from(self, element):
         return (element.findall('.//bpmn:task', ns) +
             element.findall('.//bpmn:startEvent', ns) +
+            element.findall('.//bpmn:receiveTask', ns) +
+            element.findall('.//bpmn:sendTask', ns) +
             element.findall('.//bpmn:intermediateThrowEvent', ns) +
             element.findall('.//bpmn:intermediateCatchEvent', ns) +
             element.findall('.//bpmn:endEvent', ns))
-    
+             
     def get_participants(self, root: ET.ElementTree):
 
         # find all external participants and pools
