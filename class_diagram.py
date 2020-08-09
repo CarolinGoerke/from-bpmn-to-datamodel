@@ -7,6 +7,7 @@ class ClassDiagram:
         self.dataReadAssociations = []
         self.dataWriteAssociations = []
         self.dataReadWriteAssociations = []
+        self.data_associations = []
 
     def association_not_included(self, association):
         return association not in self.dataWriteAssociations and \
@@ -16,9 +17,9 @@ class ClassDiagram:
     def get_data_access_edge(self, association, label):
         association = list(association)
         if association[0].startswith('P_') or association[0].startswith('ExtP_'):
-            return f"{association[0]} -> {association[1]} [ label=<{label}> taillabel=<*>, headlabel=<*> ]\n"
+            return f"{association[0]} -> {association[1]} [ label=<{label}>, taillabel=<*>, headlabel=<*> ]\n"
         else:
-            return f"{association[1]} -> {association[0]} [ label=<{label}> taillabel=<*>, headlabel=<*> ]\n"
+            return f"{association[1]} -> {association[0]} [ label=<{label}>, taillabel=<*>, headlabel=<*> ]\n"
 
     def as_dot(self):
         template = r"""digraph G {
@@ -56,13 +57,19 @@ class ClassDiagram:
             labeldistance=1
         ]
         """
+        
+        m_to_n_multiplicity = 'taillabel=<*>, headlabel=<*>'
 
         for me in self.messageAssociations:
             message_names = self.messageAssociations[me]
             if len(message_names) > 1:
-                template += f"{me[0].name} -> {me[1].name} [ label=<{me[0].name.split('_', 1)[1]}-{me[1].name.split('_', 1)[1]}>, taillabel=<*>, headlabel=<*> ]\n"
+                template += f"{me[0].name} -> {me[1].name} [ label=<{me[0].name.split('_', 1)[1]}-{me[1].name.split('_', 1)[1]}>, {m_to_n_multiplicity} ]\n"
             else:
-                template += f"{me[0].name} -> {me[1].name} [ label=<{message_names[0]}>, taillabel=<*>, headlabel=<*> ]\n"
+                template += f"{me[0].name} -> {me[1].name} [ label=<{message_names[0]}>, {m_to_n_multiplicity} ]\n"
+
+        for da in self.data_associations:
+            da = list(da)
+            template += f"{da[0].name} -> {da[1].name}[ {m_to_n_multiplicity} ]\n"
 
         template += """edge [
             dir="forward"
