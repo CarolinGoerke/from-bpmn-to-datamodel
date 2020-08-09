@@ -25,6 +25,9 @@ class ClassDiagram:
             fontname = "Courier"
             fontsize = 8
             rankdir = BT
+            # splines=ortho
+            # forcelabels=true
+            
 
             node [
                 fontname = "Courier"
@@ -79,7 +82,7 @@ class ClassDiagram:
             template += self.get_data_access_edge(assoc, 'read and write')
 
         template += """edge [
-            arrowhead="empty"
+            arrowhead="ediamond"
             fontsize = 8
         ]
         """
