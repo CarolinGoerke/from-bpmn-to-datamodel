@@ -89,7 +89,7 @@ class ClassDiagram:
 
         for c in self.classes:
             if self.classes[c].parent:
-                template += f"{c} -> {self.classes[c].parent}\n"
+                template += f"{c} -> {self.classes[c].parent} [ taillabel=<*>, headlabel=<1> ]\n"
 
         template += "}"
         return template
