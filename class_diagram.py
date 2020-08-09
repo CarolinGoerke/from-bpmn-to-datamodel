@@ -16,10 +16,11 @@ class ClassDiagram:
 
     def get_data_access_edge(self, association, label):
         association = list(association)
+        edge_attributes = 'taillabel=<*>, headlabel=<*>, labeldistance=1.5'
         if association[0].startswith('P_') or association[0].startswith('ExtP_'):
-            return f"{association[0]} -> {association[1]} [ label=<{label}>, taillabel=<*>, headlabel=<*> ]\n"
+            return f"{association[0]} -> {association[1]} [ label=<{label}>, {edge_attributes} ]\n"
         else:
-            return f"{association[1]} -> {association[0]} [ label=<{label}>, taillabel=<*>, headlabel=<*> ]\n"
+            return f"{association[1]} -> {association[0]} [ label=<{label}>, {edge_attributes} ]\n"
 
     def as_dot(self):
         template = r"""digraph G {
@@ -75,7 +76,6 @@ class ClassDiagram:
             dir="forward"
             arrowhead="open"
             fontsize=8
-            labeldistance=1
         ]
         """
 
@@ -96,7 +96,7 @@ class ClassDiagram:
 
         for c in self.classes:
             if self.classes[c].parent:
-                template += f"{c} -> {self.classes[c].parent} [ taillabel=<1..*>, headlabel=<1> ]\n"
+                template += f"{c} -> {self.classes[c].parent} [ taillabel=<1..*>, headlabel=<1>, labeldistance=1.5 ]\n"
 
         template += "}"
         return template
