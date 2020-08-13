@@ -52,5 +52,13 @@ class Task:
 @dataclass
 class Message:
     _id: str
+    name: str
     source: Union[Task, Participant]
     target: Union[Task, Participant]
+
+@dataclass
+class Class_Diagram_Class:
+    name: str
+    ids: Set[str] = field(default_factory=set)
+    properties: Set[str] = field(default_factory=set)
+    parent: Optional[str] = None
