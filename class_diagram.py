@@ -27,7 +27,7 @@ class ClassDiagram:
             fontname = "Courier"
             fontsize = 8
             rankdir = BT
-            # splines=ortho
+            splines=ortho
             # forcelabels=true
             
 
@@ -44,7 +44,7 @@ class ClassDiagram:
         """
 
         for c in self.classes:
-            template += f"{c} [ label=<{{<b>{c}</b><br/>|{'<br/>'.join(self.classes[c].properties)}|<br/>}}> ]\n"
+            template += f"{c} [ label=<{{<b>{c}</b><br/>|<br/>|<br/>}}> ]\n"
 
         for me in self.messageAssociations:
             message_names = self.messageAssociations[me]
@@ -70,7 +70,14 @@ class ClassDiagram:
 
         for da in self.data_associations:
             da = list(da)
-            template += f"{da[0].name} -> {da[1].name}[ {m_to_n_multiplicity} ]\n"
+            if da[0].name.startswith('DS_'):
+                template += f"{da[0].name} -> {da[1].name} [ taillabel=<1>, headlabel=<*> ]\n"
+            else:
+                template += f"{da[0].name} -> {da[1].name} [ taillabel=<*>, headlabel=<1> ]\n"
+
+        for c in self.classes:
+            for element in list(self.classes[c].properties):
+                template += f"{c} -> {element} [ taillabel=<*>, headlabel=<1> ]\n"
 
         template += """edge [
             dir="forward"

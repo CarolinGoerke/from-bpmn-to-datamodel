@@ -45,11 +45,14 @@ def main():
             if hasattr(obj, 'pool'):
                 new_class = Class_Diagram_Class(obj.name, { obj._id }, obj.properties, obj.pool)
             else:
-                new_class = Class_Diagram_Class(obj.name, { obj._id }, obj.properties)
+                new_class = Class_Diagram_Class(obj.name, { obj._id }, obj.properties, None)
             class_diagram_classes[obj.name] = new_class
         else:
             class_diagram_classes[obj.name].ids.add(obj._id)
             class_diagram_classes[obj.name].properties |= obj.properties
+            if hasattr(obj, 'pool') and class_diagram_classes[obj.name].parent is None:
+                class_diagram_classes[obj.name].parent = obj.pool
+
     diagram.classes = class_diagram_classes
 
     for obj in messageAssociations:
