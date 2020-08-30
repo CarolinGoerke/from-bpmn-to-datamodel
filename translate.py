@@ -22,10 +22,12 @@ def dot2png(dot: str, outputfile: str):
             print("Please install graphviz (brew install graphviz / apt-get install graphviz)")
             print("and make sure that 'dot' is available in your environment path.")
 
+def usage():
+    print("Usage: python3 translate.py outfile infile [infile2 ...]")
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: python3 translate.py [output_filename] [input]")
+        usage()
         sys.exit(2)
     
     diagram = ClassDiagram()
