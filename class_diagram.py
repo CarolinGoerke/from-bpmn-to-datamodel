@@ -70,10 +70,7 @@ class ClassDiagram:
 
         for da in self.data_associations:
             da = list(da)
-            if da[0].name.startswith('DS_'):
-                template += f"{da[0].name} -> {da[1].name} [ taillabel=<1>, headlabel=<*> ]\n"
-            else:
-                template += f"{da[0].name} -> {da[1].name} [ taillabel=<*>, headlabel=<1> ]\n"
+            template += f"{da[0].name} -> {da[1].name} [ taillabel=<*>, headlabel=<*> ]\n"
 
         for c in self.classes:
             for element in list(self.classes[c].properties):
